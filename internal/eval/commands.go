@@ -85,6 +85,19 @@ var (
 		NewEval:    evalGETSET,
 	}
 
+	appendCmdMeta = DiceCmdMeta{
+		Name: "APPEND",
+		Info: `APPEND appends a string to the value associated with the given key. It creates the key if it does not exist.
+		The key should be the first param in args
+		The value should be the second param in args
+		Returns an integer representing the length of the string after the append operation.
+		APPEND returns RespNIL if key is expired or it does not exist`,
+		Arity:      3,
+		KeySpecs:   KeySpecs{BeginIndex: 1},
+		IsMigrated: true,
+		NewEval:    evalAPPEND,
+	}
+
 	authCmdMeta = DiceCmdMeta{
 		Name: "AUTH",
 		Info: `AUTH returns with an encoded "OK" if the user is authenticated.
@@ -250,8 +263,8 @@ var (
 		Retrieves the keys of a JSON object stored at path specified.
 		Null reply: If the key doesn't exist or has expired.
 		Error reply: If the number of arguments is incorrect or the stored value is not a JSON type.`,
-		Eval:     evalJSONOBJKEYS,
-		Arity:    2,
+		Eval:  evalJSONOBJKEYS,
+		Arity: 2,
 	}
 	jsonarrpopCmdMeta = DiceCmdMeta{
 		Name: "JSON.ARRPOP",
@@ -967,6 +980,7 @@ func init() {
 	DiceCmds["LLEN"] = llenCmdMeta
 	DiceCmds["DBSIZE"] = dbSizeCmdMeta
 	DiceCmds["GETSET"] = getSetCmdMeta
+	DiceCmds["APPEND"] = appendCmdMeta
 	DiceCmds["FLUSHDB"] = flushdbCmdMeta
 	DiceCmds["BITPOS"] = bitposCmdMeta
 	DiceCmds["SADD"] = saddCmdMeta

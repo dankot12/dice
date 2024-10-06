@@ -272,6 +272,15 @@ func (store *Store) SetUnixTimeExpiry(obj *object.Obj, exUnixTimeSec int64) {
 	store.expires.Put(obj, uint64(exUnixTimeSec*1000))
 }
 
+// GetUnixTimeExpiry returns the expiry time for an object.
+func (store *Store) GetUnixTimeExpiry(obj *object.Obj) (uint64, bool) {
+	v, ok := store.expires.Get(obj)
+	if ok {
+		return v, true
+	}
+	return 0, false
+}
+
 func (store *Store) deleteKey(k string, obj *object.Obj) bool {
 	if obj != nil {
 		store.store.Delete(k)

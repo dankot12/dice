@@ -185,6 +185,72 @@ func evalGET(args []string, store *dstore.Store) EvalResponse {
 	}
 }
 
+// APPEND appends string to the end of the existing string value stored at key
+// The APPEND command only works with string values.
+// If key does not exist, the value to be appended will be set as the new value of the key.
+
+// Returns:
+// Integer reply: the new length of the value stored at key.
+// Nil reply: if the value to be appended does not hold a string value
+
+// Returns encoded error response if <key,value> is not part of args
+// Returns encoded error response if value is not a string
+func evalAPPEND(args []string, store *dstore.Store) EvalResponse {
+	if len(args) != 2 {
+		return EvalResponse{Result: nil, Error: errors.New(string(diceerrors.NewErrArity("APPEND")))}
+	}
+
+	key, valueToAppend := args[0], args[1]
+	obj := store.Get(key)
+
+	// If key does not exist, treat the operation as a SET operation
+	if obj == nil {
+		newArgs := []string{key, valueToAppend}
+		evalSET(newArgs, store)
+		return EvalResponse{Result: clientio.Encode(len(valueToAppend), false), Error: nil}
+	}
+
+	// Check if the value stored at key is a string
+	objType, objEnc := object.ExtractTypeEncoding(obj)
+	if objType != object.ObjTypeString {
+		return EvalResponse{Result: nil,
+			Error: errors.New(string(diceerrors.NewErrWithMessage(diceerrors.WrongTypeErr)))}
+	}
+
+	// Append the value to the existing string value
+	var currentValue string
+	switch objEnc {
+	case object.ObjEncodingInt:
+		currentValue = strconv.FormatInt(obj.Value.(int64), 10)
+	case object.ObjEncodingEmbStr, object.ObjEncodingRaw:
+		currentValue = obj.Value.(string)
+	default:
+		return EvalResponse{Result: nil,
+			Error: errors.New(string(diceerrors.NewErrWithMessage(diceerrors.WrongTypeErr)))}
+	}
+
+	// Append the new value
+	newValue := currentValue + valueToAppend
+
+	// Get the current expiry time
+	var exDurationMs int64 = -1 // -1 indicates no expiry time
+	expiryTStampMs, hasExpiry := store.GetUnixTimeExpiry(obj)
+
+	// Set the new expiry time
+	if hasExpiry {
+		// get the new expiry time in milliseconds
+		exDurationMs = int64(expiryTStampMs) - utils.GetCurrentTime().UnixMilli()
+		if exDurationMs < 0 {
+			// set expiry time to 0
+			exDurationMs = 0
+		}
+	}
+
+	// Update the value in the store
+	store.Put(key, store.NewObj(newValue, exDurationMs, objType, object.ObjEncodingRaw), dstore.WithKeepTTL(true))
+	return EvalResponse{Result: clientio.Encode(len(newValue), false), Error: nil}
+}
+
 // GETSET atomically sets key to value and returns the old value stored at key.
 // Returns an error when key exists but does not hold a string value.
 // Any previous time to live associated with the key is
